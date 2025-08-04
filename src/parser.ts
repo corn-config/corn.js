@@ -1,6 +1,8 @@
 import { Token } from "./lexer";
 import { err, ok, Result } from "./utils";
 
+type TokenType = Token["type"];
+
 export type RuleConfig = {
   type: "config";
   assignBlock?: RuleAssignBlock;
@@ -54,6 +56,14 @@ export type RuleStringPart =
   | RuleUnicodeEscape
   | RuleInput;
 
+/**
+ * Attempts to parse the provided token array
+ * into an AST of rules.
+ *
+ * @param tokens The token array.
+ * @returns A result containing the AST if successfully parsed,
+ * or an error message if not.
+ */
 export function parseTokens(tokens: Token[]): Result<RuleConfig, string> {
   if (tokens.length === 0) return err("no tokens");
 
@@ -76,10 +86,10 @@ export function parseTokens(tokens: Token[]): Result<RuleConfig, string> {
 }
 
 function parseAssignBlock(tokens: Token[]): Result<RuleAssignBlock, string> {
-  let lit = consumeLiteral(tokens, { type: "let" });
+  let lit = consumeLiteral(tokens, "let");
   if (!lit.ok) return lit;
 
-  lit = consumeLiteral(tokens, { type: "{" });
+  lit = consumeLiteral(tokens, "{");
   if (!lit.ok) return lit;
 
   const rule: RuleAssignBlock = { type: "assignBlock", assignments: [] };
@@ -88,7 +98,7 @@ function parseAssignBlock(tokens: Token[]): Result<RuleAssignBlock, string> {
     const name = tokens.shift();
     if (name?.type !== "input") return err("expected input declaration");
 
-    lit = consumeLiteral(tokens, { type: "=" });
+    lit = consumeLiteral(tokens, "=");
     if (!lit.ok) return lit;
 
     const value = parseValue(tokens);
@@ -101,17 +111,17 @@ function parseAssignBlock(tokens: Token[]): Result<RuleAssignBlock, string> {
     });
   }
 
-  lit = consumeLiteral(tokens, { type: "}" });
+  lit = consumeLiteral(tokens, "}");
   if (!lit.ok) return lit;
 
-  lit = consumeLiteral(tokens, { type: "in" });
+  lit = consumeLiteral(tokens, "in");
   if (!lit.ok) return lit;
 
   return ok(rule);
 }
 
 function parseObject(tokens: Token[]): Result<RuleObject, string> {
-  let lit = consumeLiteral(tokens, { type: "{" });
+  let lit = consumeLiteral(tokens, "{");
   if (!lit.ok) return lit;
 
   const object: RuleObject = { type: "object", pairs: [] };
@@ -119,16 +129,18 @@ function parseObject(tokens: Token[]): Result<RuleObject, string> {
   let token = tokens[0];
   while (token && token.type !== "}") {
     switch (token.type) {
-      case "..":
+      case "..": {
         const spread = parseSpread(tokens);
         if (!spread.ok) return spread;
         object.pairs.push(spread.value);
         break;
-      case "pathSegment":
+      }
+      case "pathSegment": {
         const pair = parsePair(tokens);
         if (!pair.ok) return pair;
         object.pairs.push(pair.value);
         break;
+      }
       default:
         return err("expected `..` or path segment, got: " + token.type);
     }
@@ -136,7 +148,7 @@ function parseObject(tokens: Token[]): Result<RuleObject, string> {
     token = tokens[0];
   }
 
-  lit = consumeLiteral(tokens, { type: "}" });
+  lit = consumeLiteral(tokens, "}");
   if (!lit.ok) return lit;
 
   return ok(object);
@@ -148,7 +160,7 @@ function parsePair(tokens: Token[]): Result<RulePair, string> {
   const path = parsePath(tokens);
   if (!path.ok) return path;
 
-  let lit = consumeLiteral(tokens, { type: "=" });
+  const lit = consumeLiteral(tokens, "=");
   if (!lit.ok) return lit;
 
   const value = parseValue(tokens);
@@ -166,7 +178,7 @@ function parsePath(tokens: Token[]): Result<RulePath, string> {
   rule.value.push(token.value);
 
   while (tokens[0].type !== "=") {
-    let lit = consumeLiteral(tokens, { type: "." });
+    const lit = consumeLiteral(tokens, ".");
     if (!lit.ok) return lit;
 
     const token = tokens.shift();
@@ -209,7 +221,7 @@ function parseValue(tokens: Token[]): Result<RuleValue, string> {
 }
 
 function parseString(tokens: Token[]): Result<RuleString, string> {
-  let lit = consumeLiteral(tokens, { type: '"' });
+  let lit = consumeLiteral(tokens, '"');
   if (!lit.ok) return lit;
 
   const rule: RuleString = { type: "string", value: [] };
@@ -234,14 +246,14 @@ function parseString(tokens: Token[]): Result<RuleString, string> {
     token = tokens[0];
   }
 
-  lit = consumeLiteral(tokens, { type: '"' });
+  lit = consumeLiteral(tokens, '"');
   if (!lit.ok) return lit;
 
   return ok(rule);
 }
 
 function parseArray(tokens: Token[]): Result<RuleArray, string> {
-  let lit = consumeLiteral(tokens, { type: "[" });
+  let lit = consumeLiteral(tokens, "[");
   if (!lit.ok) return lit;
 
   const rule: RuleArray = { type: "array", values: [] };
@@ -249,29 +261,31 @@ function parseArray(tokens: Token[]): Result<RuleArray, string> {
   let token = tokens[0];
   while (token.type !== "]") {
     switch (token.type) {
-      case "..":
+      case "..": {
         const spread = parseSpread(tokens);
         if (!spread.ok) return spread;
         rule.values.push(spread.value);
         break;
-      default:
+      }
+      default: {
         const value = parseValue(tokens);
         if (!value.ok) return value;
         rule.values.push(value.value);
         break;
+      }
     }
 
     token = tokens[0];
   }
 
-  lit = consumeLiteral(tokens, { type: "]" });
+  lit = consumeLiteral(tokens, "]");
   if (!lit.ok) return lit;
 
   return ok(rule);
 }
 
 function parseSpread(tokens: Token[]): Result<RuleSpread, string> {
-  let lit = consumeLiteral(tokens, { type: ".." });
+  const lit = consumeLiteral(tokens, "..");
   if (!lit.ok) return lit;
 
   const input = tokens.shift();
@@ -280,10 +294,23 @@ function parseSpread(tokens: Token[]): Result<RuleSpread, string> {
   return ok({ type: "spread", value: input.value });
 }
 
-function consumeLiteral(tokens: Token[], token: Token): Result<void, string> {
+/**
+ * Consumes a literal token,
+ * returning an error if is not present.
+ *
+ * @param tokens Token array
+ * @param tokenType Token to consume
+ */
+function consumeLiteral(
+  tokens: Token[],
+  tokenType: TokenType,
+): Result<void, string> {
   if (tokens.length === 0) return err("no tokens");
 
   const nextToken = tokens.shift();
-  if (nextToken?.type != token.type) return err(`expected '${token.type}', got '${nextToken?.type}'`);
+  if (nextToken?.type !== tokenType) {
+    return err(`expected '${tokenType}', got '${nextToken?.type}'`);
+  }
+
   return ok(undefined);
 }

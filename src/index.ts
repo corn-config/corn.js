@@ -3,13 +3,22 @@ import { parseTokens } from "./parser";
 import { Evaluator, Value } from "./evaluator";
 import { err, Result } from "./utils";
 
-export type { LexerError } from './lexer';
-export type { Value } from './evaluator';
-export type { Result } from './utils'
+export type { LexerError } from "./lexer";
+export type { Value } from "./evaluator";
+export type { Result } from "./utils";
 
-export function parse(
+/**
+ * Parses the provided corn string
+ * into an object.
+ *
+ * @typeParam T output object type
+ * @param corn input string
+ * @returns result containing output object on success,
+ * or error variant on any failure.
+ */
+export function parse<T extends Record<string, Value> = Record<string, Value>>(
   corn: string,
-): Result<Record<string, Value>, string | LexerError> {
+): Result<T, string | LexerError> {
   const lexer = new Lexer();
   const tokensRes = lexer.tokenizeInput(corn);
 
@@ -22,11 +31,14 @@ export function parse(
 
   const ast = astRes.value;
   const evaluator = new Evaluator();
-  return evaluator.evaluate(ast);
+  return evaluator.evaluate(ast) as Result<T, string | LexerError>;
 }
 
+/* ---- */
+
+// import fs from "fs";
 // const input = fs
-//   .readFileSync("test-suite/corn/array/single.pos.corn", "utf-8");
+//   .readFileSync("test-suite/corn/input/basic.pos.corn", "utf-8");
 //
 // console.log(input);
 //

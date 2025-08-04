@@ -1,13 +1,33 @@
+/**
+ * Represents the outcome of a fallible operation,
+ * where the outcome can be either success value `T` or error `E`.
+ */
 export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 
+/**
+ * Creates an ok (success) variant of `Result`.
+ * @param value
+ */
 export function ok<T, E>(value: T): Result<T, E> {
   return { ok: true, value };
 }
 
+/**
+ * Creates an error variant of `Result`.
+ * @param error
+ */
 export function err<T, E>(error: E): Result<T, E> {
   return { ok: false, error };
 }
 
+/**
+ * Throws an "unreachable" error if it ever runs.
+ *
+ * This is used as an exhaustive typeguard check on switch blocks,
+ * causing the type checker to error if a non-never type is passed in.
+ * @param _
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function assertNever(_: never): never {
   throw new Error("unreachable");
 }
@@ -53,6 +73,8 @@ export function isAlphanumeric(char: string): boolean {
   return isDigit(char) || isLetter(char);
 }
 
-export function isObject(val: unknown): val is Record<any, any> {
+export function isObject(
+  val: unknown,
+): val is Record<string | number | symbol, unknown> {
   return typeof val === "object" && val !== null && !Array.isArray(val);
 }

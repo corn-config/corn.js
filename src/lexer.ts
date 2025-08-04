@@ -11,22 +11,12 @@ import {
 
 const WHITESPACE = "\n\r\t ";
 
-const LiteralCharTokens = ["{", "}", "[", "]", "=", '"', "."] as const;
-type LiteralCharToken = (typeof LiteralCharTokens)[number];
-
-const LiteralStringTokens = [
-  "..",
-  "let",
-  "in",
-  "true",
-  "false",
-  "null",
-] as const;
-type LiteralStringToken = (typeof LiteralStringTokens)[number];
+type LiteralChar = "{" | "}" | "[" | "]" | "=" | '"' | ".";
+type LiteralString = ".." | "let" | "in" | "true" | "false" | "null";
 
 export type Token =
-  | { type: LiteralCharToken }
-  | { type: LiteralStringToken }
+  | { type: LiteralChar }
+  | { type: LiteralString }
   | { type: "pathSegment"; value: string }
   | { type: "integer"; value: number }
   | { type: "float"; value: number }
@@ -88,92 +78,122 @@ export class Lexer {
 
   private readonly MATCHERS: Record<State, Matcher[]> = {
     [State.TopLevel]: [
-      createMatcher(this.matchCharLiteral("{"), {
+      createMatcher(this.matchLiteral("{"), {
         action: "push",
         state: State.Object,
       }),
-      createMatcher(this.matchStringLiteral("let"), {
+      createMatcher(this.matchLiteral("let"), {
         action: "push",
         state: State.AssignBlock,
       }),
     ],
     [State.AssignBlock]: [
-      createMatcher(this.matchStringLiteral("in"), { action: "pop" }),
+      createMatcher(this.matchLiteral("in"), { action: "pop" }),
 
-      createMatcher(this.matchCharLiteral("{")),
-      createMatcher(this.matchCharLiteral("}")),
+      createMatcher(this.matchLiteral("{")),
+      createMatcher(this.matchLiteral("}")),
       createMatcher(this.matchInput.bind(this)),
-      createMatcher(this.matchCharLiteral("="), {
+      createMatcher(this.matchLiteral("="), {
         action: "push",
         state: State.Value,
       }),
     ],
     [State.Value]: [
-      createMatcher(this.matchCharLiteral("{"), {
+      createMatcher(this.matchLiteral("{"), {
         action: "replace",
         state: State.Object,
       }),
-      createMatcher(this.matchCharLiteral("["), {
+      createMatcher(this.matchLiteral("["), {
         action: "replace",
         state: State.Array,
       }),
 
-      createMatcher(this.matchStringLiteral("true"), { action: "pop" }, [...WHITESPACE, '}']),
-      createMatcher(this.matchStringLiteral("false"), { action: "pop" }, [...WHITESPACE, '}']),
-      createMatcher(this.matchStringLiteral("null"), { action: "pop" }, [...WHITESPACE, '}']),
+      createMatcher(this.matchLiteral("true"), { action: "pop" }, [
+        ...WHITESPACE,
+        "}",
+      ]),
+      createMatcher(this.matchLiteral("false"), { action: "pop" }, [
+        ...WHITESPACE,
+        "}",
+      ]),
+      createMatcher(this.matchLiteral("null"), { action: "pop" }, [
+        ...WHITESPACE,
+        "}",
+      ]),
 
-      createMatcher(this.matchCharLiteral('"'), {
+      createMatcher(this.matchLiteral('"'), {
         action: "replace",
         state: State.String,
       }),
 
-      createMatcher(this.matchInput.bind(this), { action: "pop" }, [...WHITESPACE, '}']),
-      createMatcher(this.matchFloat.bind(this), { action: "pop" }, [...WHITESPACE, '}']),
-      createMatcher(this.matchInteger.bind(this), { action: "pop" }, [...WHITESPACE, '}']),
+      createMatcher(this.matchInput.bind(this), { action: "pop" }, [
+        ...WHITESPACE,
+        "}",
+      ]),
+      createMatcher(this.matchFloat.bind(this), { action: "pop" }, [
+        ...WHITESPACE,
+        "}",
+      ]),
+      createMatcher(this.matchInteger.bind(this), { action: "pop" }, [
+        ...WHITESPACE,
+        "}",
+      ]),
 
-      createMatcher(this.matchCharLiteral("]"), { action: "pop" }),
+      createMatcher(this.matchLiteral("]"), { action: "pop" }),
     ],
     [State.Object]: [
-      createMatcher(this.matchCharLiteral("}"), { action: "pop" }),
+      createMatcher(this.matchLiteral("}"), { action: "pop" }),
 
-      createMatcher(this.matchCharLiteral("="), {
+      createMatcher(this.matchLiteral("="), {
         action: "push",
         state: State.Value,
       }),
-      createMatcher(this.matchStringLiteral("..")),
-      createMatcher(this.matchCharLiteral(".")),
+      createMatcher(this.matchLiteral("..")),
+      createMatcher(this.matchLiteral(".")),
       createMatcher(this.matchInput.bind(this)),
       createMatcher(this.matchQuotedPathSegment.bind(this)),
       createMatcher(this.matchPathSegment.bind(this)),
     ],
     [State.Array]: [
-      createMatcher(this.matchCharLiteral("]"), { action: "pop" }),
+      createMatcher(this.matchLiteral("]"), { action: "pop" }),
 
-      createMatcher(this.matchCharLiteral("{"), {
+      createMatcher(this.matchLiteral("{"), {
         action: "push",
         state: State.Object,
       }),
-      createMatcher(this.matchCharLiteral("["), {
+      createMatcher(this.matchLiteral("["), {
         action: "push",
         state: State.Array,
       }),
-      createMatcher(this.matchCharLiteral('"'), {
+      createMatcher(this.matchLiteral('"'), {
         action: "push",
         state: State.String,
       }),
 
-      createMatcher(this.matchStringLiteral("..")),
+      createMatcher(this.matchLiteral("..")),
 
-      createMatcher(this.matchStringLiteral("true"), undefined, [...WHITESPACE, ']']),
-      createMatcher(this.matchStringLiteral("false"), undefined, [...WHITESPACE, ']']),
-      createMatcher(this.matchStringLiteral("null"), undefined, [...WHITESPACE, ']']),
+      createMatcher(this.matchLiteral("true"), undefined, [...WHITESPACE, "]"]),
+      createMatcher(this.matchLiteral("false"), undefined, [
+        ...WHITESPACE,
+        "]",
+      ]),
+      createMatcher(this.matchLiteral("null"), undefined, [...WHITESPACE, "]"]),
 
-      createMatcher(this.matchInput.bind(this), undefined, [...WHITESPACE, ']']),
-      createMatcher(this.matchFloat.bind(this), undefined, [...WHITESPACE, ']']),
-      createMatcher(this.matchInteger.bind(this), undefined, [...WHITESPACE, ']']),
+      createMatcher(this.matchInput.bind(this), undefined, [
+        ...WHITESPACE,
+        "]",
+      ]),
+      createMatcher(this.matchFloat.bind(this), undefined, [
+        ...WHITESPACE,
+        "]",
+      ]),
+      createMatcher(this.matchInteger.bind(this), undefined, [
+        ...WHITESPACE,
+        "]",
+      ]),
     ],
     [State.String]: [
-      createMatcher(this.matchCharLiteral('"'), { action: "pop" }),
+      createMatcher(this.matchLiteral('"'), { action: "pop" }),
 
       createMatcher(this.matchInterpolatedInput.bind(this)),
       createMatcher(this.matchCharEscape.bind(this)),
@@ -188,7 +208,7 @@ export class Lexer {
 
     const tokens: TokenWithSpan[] = [];
 
-    let state: State[] = [State.TopLevel];
+    const state: State[] = [State.TopLevel];
     while (input.length > 0) {
       const currLength = input.length;
       const currentState = state[state.length - 1];
@@ -212,8 +232,7 @@ export class Lexer {
         continue;
       }
 
-      if (currentState !== State.String && char === "/" && input[1] === "/") {
-        input.splice(0, 2);
+      if (currentState !== State.String && take(input, "/", "/")) {
         takeWhile(input, (char) => char !== "\n");
         continue;
       }
@@ -247,9 +266,11 @@ export class Lexer {
             assertNever(matcher.stateChange);
         }
 
-        if(matcher.requiredChars.length) {
+        // some tokens cannot be next to other tokens
+        // (for example, to prevent `[truefalsenull]` in an array).
+        if (matcher.requiredChars.length) {
           const nextChar = input[0];
-          if(!matcher.requiredChars.includes(nextChar)) {
+          if (!matcher.requiredChars.includes(nextChar)) {
             return err({
               message: `expected whitespace after ${match.value.token.type}`,
               span: match.value.span,
@@ -362,46 +383,38 @@ export class Lexer {
 
     const isNegative = take(input, "-");
 
-    const [baseA, baseB] = input;
-
     let base = 10;
     let matcher = isDigit;
-    if (baseA === "0") {
-      switch (baseB) {
-        case "b":
-          base = 2;
-          matcher = (char: string) => char === "0" || char === "1";
-          break;
-        case "x":
-          base = 16;
-          matcher = isHexDigit;
-          break;
-        case "o":
-          base = 8;
-          matcher = (char: string) => char >= "0" && char <= "7";
-          break;
-      }
+    switch (true) {
+      case !!take(input, "0", "b"):
+        base = 2;
+        matcher = (char: string) => char === "0" || char === "1";
+        break;
+      case !!take(input, "0", "x"):
+        base = 16;
+        matcher = isHexDigit;
+        break;
+      case !!take(input, "0", "o"):
+        base = 8;
+        matcher = (char: string) => char >= "0" && char <= "7";
+        break;
     }
-
-    if (base !== 10) input.splice(0, 2);
 
     const value: string[] = [];
     let char = input[0];
-    while(char && (matcher(char) || char === "_")) {
+    while (char && (matcher(char) || char === "_")) {
       const match = takeWhile(input, matcher);
       if (!match.length) return ok(undefined);
       value.push(...match);
 
       char = input[0];
-      if(char === "_") {
-        input.shift();
-      }
+      take(input, "_");
     }
 
     if (value.length) {
       let num = Number.parseInt(value.join(""), base);
 
-      if(!Number.isSafeInteger(num)) {
+      if (!Number.isSafeInteger(num)) {
         return err({
           message: "integer out of range",
           span: this.getAbsoluteSpan({
@@ -412,14 +425,15 @@ export class Lexer {
         });
       }
 
-      if (Number.isNaN(num)) return err({
-        message: "invalid integer",
-        span: this.getAbsoluteSpan({
-          startCol: 0,
-          endCol: value.length,
-          endRow: 0,
-        }),
-      })
+      if (Number.isNaN(num))
+        return err({
+          message: "invalid integer",
+          span: this.getAbsoluteSpan({
+            startCol: 0,
+            endCol: value.length,
+            endRow: 0,
+          }),
+        });
 
       if (isNegative) num *= -1;
       const token: Token = { type: "integer", value: num };
@@ -436,9 +450,8 @@ export class Lexer {
     return ok(undefined);
   }
 
-  // TODO: Rewrite - this uses far too much string building
   private matchFloat(input: string[]): TokenResult {
-    if (input.length < 2)
+    if (input.length < 2) {
       return err({
         message: "unexpected end of input",
         span: this.getAbsoluteSpan({
@@ -447,35 +460,24 @@ export class Lexer {
           endRow: 0,
         }),
       });
-
-    const sign = input[0];
-    const isNegative = sign === "-";
-
-    const intPartChars: string[] = [];
-
-    // we don't want to take from input yet
-    // as this may be an integer rather than a float
-    let i = isNegative ? 1 : 0;
-    let char = input[i];
-
-    while (isDigit(char)) {
-      intPartChars.push(char);
-      char = input[++i];
     }
 
-    const intPart = Number.parseInt(intPartChars.join(""), 10);
-    if (Number.isNaN(intPart) || char !== ".") return ok(undefined);
+    const isNegative = peek(input, "-");
+    const negOffset = isNegative ? 1 : 0;
+    const intPartChars: string[] = peekWhile(input.slice(negOffset), isDigit);
 
-    input.splice(0, i + 1);
+    if (input[intPartChars.length + negOffset] !== ".") return ok(undefined);
+
+    input.splice(0, intPartChars.length + negOffset + 1);
 
     const floatPartChars = takeWhile(input, isDigit);
 
     let exponent = "";
-    if (input[0] === "e") {
-      exponent += input.shift();
+    if (take(input, "e")) {
+      exponent += "e";
 
-      const expSign = input[0] as string; // ts things this is "e"
-      if (expSign !== "+" && expSign !== "-") {
+      const expSign = take(input, "+") || take(input, "-");
+      if (!expSign) {
         return err({
           message: "expected one of `+` or `-`",
           span: this.getAbsoluteSpan({
@@ -486,26 +488,13 @@ export class Lexer {
         });
       }
 
-      exponent += input.shift();
+      exponent += expSign;
 
       const expPartChars = takeWhile(input, isDigit);
-
-      let expPart = Number.parseInt(expPartChars.join(""), 10);
-      if (Number.isNaN(expPart)) {
-        return err({
-          message: "float exponent must be a base 10 integer",
-          span: this.getAbsoluteSpan({
-            startCol: intPartChars.length + floatPartChars.length + 2,
-            endCol: intPartChars.length + floatPartChars.length + 3,
-            endRow: 0,
-          }),
-        });
-      }
-
-      exponent += expPart.toString();
+      exponent += expPartChars.join("");
     }
 
-    const fullString = `${intPart}.${floatPartChars.join("")}${exponent}`;
+    const fullString = `${intPartChars.join("")}.${floatPartChars.join("")}${exponent}`;
     let num = parseFloat(fullString);
     if (Number.isNaN(num)) {
       return err({
@@ -630,7 +619,7 @@ export class Lexer {
     const value = takeWhile(
       input,
       (char, next) =>
-        char !== '"' && char !== "\\" && (char != "$" || next !== "{"),
+        char !== '"' && char !== "\\" && (char !== "$" || next !== "{"),
     );
 
     if (value.length) {
@@ -673,24 +662,15 @@ export class Lexer {
     });
   }
 
-  private matchCharLiteral(char: LiteralCharToken) {
-    return (input: string[]): TokenResult => {
-      if (input[0] === char) {
-        input.shift();
-        return ok({
-          token: { type: char },
-          span: this.getAbsoluteSpan({ startCol: 0, endCol: 1, endRow: 0 }),
-        });
-      }
+  /**
+   * Returns a matcher function for a literal token.
 
-      return ok(undefined);
-    };
-  }
-
-  private matchStringLiteral(str: LiteralStringToken) {
+   * @param str Literal token value.
+   * @private
+   */
+  private matchLiteral(str: LiteralChar | LiteralString) {
     return (input: string[]): TokenResult => {
-      if (input.slice(0, str.length).join("") === str) {
-        input.splice(0, str.length);
+      if (take(input, ...str)) {
         return ok({
           token: { type: str },
           span: this.getAbsoluteSpan({
@@ -708,6 +688,7 @@ export class Lexer {
   /**
    * Applies a relative span to the current row/col
    * to get an absolute span.
+   *
    * @param relativeSpan
    * @private
    */
@@ -727,39 +708,95 @@ export class Lexer {
   }
 }
 
-function createMatcher(func: MatcherFunc, stateChange?: StateChange, requiredChars: string[] = []): Matcher {
+/**
+ * Creates a new matcher object.
+ * @param func
+ * @param stateChange
+ * @param requiredChars
+ */
+function createMatcher(
+  func: MatcherFunc,
+  stateChange?: StateChange,
+  requiredChars: string[] = [],
+): Matcher {
   return {
     func,
     stateChange: stateChange ?? { action: "none" },
-    requiredChars
+    requiredChars,
   };
 }
 
 /**
- * Attempts to take `char` from the start of `input`.
- * If `char` is not present, returns `false` and does nothing.
+ * Checks if the provided chars are present at the start of the input.
+ * Characters are not consumed.
  *
- * If `char` is present, it is removed from the front of `input`,
- * and returns `true`.
- * @param input
- * @param chars
+ * @param input Input chars
+ * @param chars Check chars, in order.
+ * @returns Whether chars exist at start of input.
  */
-function take(input: string[], ...chars: string[]): boolean {
+function peek(input: string[], ...chars: string[]): boolean {
   for (let i = 0; i < chars.length; i++) {
     if (input[i] !== chars[i]) return false;
   }
 
-  input.splice(0, chars.length);
   return true;
 }
 
+/**
+ * Like {@link takeWhile},
+ * but does not take the characters from `input`.
+ *
+ * @param input Input chars
+ * @param predicate Check function.
+ */
+function peekWhile(
+  input: string[],
+  predicate: (char: string, next: string | undefined) => boolean,
+): string[] {
+  const result: string[] = [];
+
+  let char = input[0];
+  let i = 0;
+  while (predicate(input[i], input[i + 1]) && i < input.length) {
+    result.push(char);
+    char = input[++i];
+  }
+
+  return result;
+}
+
+/**
+ * Attempts to take `chars` from the start of `input`.
+ * If any of `chars` is not present, returns `false` and does nothing.
+ *
+ * If all `chars` are present, they are removed from the front of `input`
+ * and returned.
+ *
+ * @param input Input chars
+ * @param chars chars to take, in order
+ * @returns taken chars, or `false`.
+ */
+function take(input: string[], ...chars: string[]): string[] | false {
+  const res = peek(input, ...chars);
+  if (res) input.splice(0, chars.length);
+  return res ? chars : false;
+}
+
+/**
+ * Takes chars from the start of `input`
+ * for as long as `predicate` is true.
+ *
+ * The predicate function takes the current and next char,
+ * and returns a boolean.
+ *
+ * @param input Input chars.
+ * @param predicate Check function.
+ */
 function takeWhile(
   input: string[],
   predicate: (char: string, next: string | undefined) => boolean,
 ) {
-  const result: string[] = [];
-  while (predicate(input[0], input[1]) && input.length > 0) {
-    result.push(input.shift() as string);
-  }
-  return result;
+  const res = peekWhile(input, predicate);
+  if (res.length) input.splice(0, res.length);
+  return res;
 }

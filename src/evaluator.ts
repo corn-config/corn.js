@@ -25,44 +25,43 @@ export class Evaluator {
   public evaluate(rule: RuleConfig): Result<Record<string, Value>, string> {
     if (rule.assignBlock) {
       const res = this.evaluateAssignBlock(rule.assignBlock);
-      if(!res.ok) return res;
+      if (!res.ok) return res;
     }
 
     const obj = this.evaluateObject(rule.object);
-    if(!obj.ok) return obj;
+    if (!obj.ok) return obj;
 
     return ok(obj.value);
-  }
-
-  public clear() {
-    this.inputs = {};
   }
 
   private evaluateAssignBlock(rule: RuleAssignBlock): Result<void, string> {
     for (const pair of rule.assignments) {
       const value = this.evaluateValue(pair.value);
-      if(!value.ok) return value;
+      if (!value.ok) return value;
       this.inputs[pair.key] = value.value;
     }
 
     return ok(undefined);
   }
 
-  private evaluateObject(rule: RuleObject): Result<Record<string, Value>, string> {
+  private evaluateObject(
+    rule: RuleObject,
+  ): Result<Record<string, Value>, string> {
     const obj: Record<string, Value> = {};
 
     for (const pair of rule.pairs) {
       switch (pair.type) {
-        case "pair":
-          const val = this.evaluateValue(pair.value);
-          if(!val.ok) return val;
+        case "pair": {
+          const value = this.evaluateValue(pair.value);
+          if (!value.ok) return value;
 
-          const res = this.addAtPath(obj, pair.path.value, val.value);
-          if(!res.ok) return res;
+          const res = this.addAtPath(obj, pair.path.value, value.value);
+          if (!res.ok) return res;
           break;
-        case "spread":
+        }
+        case "spread": {
           const value = this.evaluateInput(pair);
-          if(!value.ok) return value;
+          if (!value.ok) return value;
 
           if (!isObject(value.value))
             return err(`input is not an object: ${pair.value}`);
@@ -71,6 +70,7 @@ export class Evaluator {
             obj[key] = value.value[key as keyof Value];
           }
           break;
+        }
         default:
           assertNever(pair);
       }
@@ -79,7 +79,11 @@ export class Evaluator {
     return ok(obj);
   }
 
-  private addAtPath(obj: Record<string, Value>, path: string[], value: Value): Result<void, string> {
+  private addAtPath(
+    obj: Record<string, Value>,
+    path: string[],
+    value: Value,
+  ): Result<void, string> {
     for (let i = 0; i < path.length; i++) {
       const key = path[i];
 
@@ -92,9 +96,7 @@ export class Evaluator {
       if (existingObject === undefined) {
         obj[key] = {};
       } else if (!isObject(existingObject)) {
-        return err(
-          `expected object at path ${path.slice(0, i + 1).join(".")}`,
-        );
+        return err(`expected object at path ${path.slice(0, i + 1).join(".")}`);
       }
 
       obj = obj[key] as Record<string, Value>;
@@ -108,19 +110,21 @@ export class Evaluator {
 
     for (const value of rule.values) {
       switch (value.type) {
-        case "spread":
+        case "spread": {
           const inputVal = this.evaluateInput(value);
-          if(!inputVal.ok) return inputVal;
+          if (!inputVal.ok) return inputVal;
 
           if (!Array.isArray(inputVal.value))
             return err(`input is not an array: ${value.value}`);
 
           array.push(...inputVal.value);
           break;
-        default:
+        }
+        default: {
           const val = this.evaluateValue(value);
-          if(!val.ok) return val;
+          if (!val.ok) return val;
           array.push(val.value);
+        }
       }
     }
 
@@ -136,21 +140,23 @@ export class Evaluator {
         case "charEscape":
           result.push(part.value);
           break;
-        case "unicodeEscape":
-          const MAX = 0x10FFFF;
+        case "unicodeEscape": {
+          const MAX = 0x10ffff;
           if (part.value > MAX) {
-            return err('invalid code point');
+            return err("invalid code point");
           }
           result.push(String.fromCodePoint(part.value));
           break;
-        case "input":
+        }
+        case "input": {
           const value = this.evaluateInput(part);
-          if(!value.ok) return value;
+          if (!value.ok) return value;
           if (typeof value.value !== "string")
             return err(`input is not a string: ${part.value}`);
 
           result.push(...value.value);
           break;
+        }
         default:
           assertNever(part);
       }
@@ -211,8 +217,3 @@ export class Evaluator {
     return ok(value);
   }
 }
-
-export class ObjectEvaluator extends Evaluator {
-
-}
-
