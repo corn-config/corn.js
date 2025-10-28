@@ -3,6 +3,7 @@ import { glob } from "glob";
 import { Evaluator } from "./evaluator";
 import { Lexer, LexerError } from "./lexer";
 import { parseTokens } from "./parser";
+import { parse } from "./index";
 
 const positiveCases = glob
   .sync("test-suite/corn/**/*.pos.corn")
@@ -51,18 +52,7 @@ function positiveTest(key: string, value: string) {
   const json = JSON.parse(jsonFile);
 
   test(key, () => {
-    const tokens = new Lexer().tokenizeInput(corn);
-
-    expect(tokens.ok).toBe(true);
-    if (!tokens.ok) return; // make typescript happy
-
-    const ast = parseTokens(tokens.value.map((t) => t.token));
-
-    expect(ast.ok).toBe(true);
-    if (!ast.ok) return;
-
-    const evaluator = new Evaluator();
-    const result = evaluator.evaluate(ast.value);
+    const result = parse(corn);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
