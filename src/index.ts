@@ -19,6 +19,11 @@ export type { Result } from "./utils";
 export function parse<T extends Record<string, Value> = Record<string, Value>>(
   corn: string,
 ): Result<T, string | LexerError> {
+  // strip bom
+  if (corn.charCodeAt(0) === 0xfeff) {
+    corn = corn.slice(1);
+  }
+
   const lexer = new Lexer();
   const tokensRes = lexer.tokenizeInput(corn);
 
