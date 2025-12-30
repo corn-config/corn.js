@@ -1,7 +1,25 @@
 {
   "name": "corn.js",
+  "author": {
+    "email": "mail@jstanger.dev",
+    "name": "Jake Stanger",
+    "url": "https://github.com/jakestanger"
+  },
+  "files": [
+    "dist"
+  ],
   "version": "0.11.0",
-  "description": "",
+  "description": " Native Typescript Corn parser",
+  "homepage": "https://cornlang.dev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jakestanger/corn.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jakestanger/corn/issues"
+  },
+  "keywords": ["corn", "config", "parser", "language", "typescript"],
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
