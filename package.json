@@ -8,7 +8,7 @@
   "files": [
     "dist"
   ],
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": " Native Typescript Corn parser",
   "homepage": "https://cornlang.dev",
   "license": "MIT",
